@@ -1,0 +1,305 @@
+/*
+#include <Wire.h>
+float RateRoll, RatePitch, RateYaw;
+float RateCalibrationRoll, RateCalibrationPitch, RateCalibrationYaw;
+int RateCalibrationNumber;
+void gyro_signals(void) {
+  Wire.beginTransmission(0x68);
+  Wire.write(0x1A);
+  Wire.write(0x05);
+  Wire.endTransmission(); 
+  Wire.beginTransmission(0x68);
+  Wire.write(0x1B);
+  Wire.write(0x08);
+  Wire.endTransmission();
+  Wire.beginTransmission(0x68);
+  Wire.write(0x43);
+  Wire.endTransmission(); 
+  Wire.requestFrom(0x68,6);
+  int16_t GyroX=Wire.read()<<8 | Wire.read();
+  int16_t GyroY=Wire.read()<<8 | Wire.read();
+  int16_t GyroZ=Wire.read()<<8 | Wire.read();
+  RateRoll=(float)GyroX/65.5;
+  RatePitch=(float)GyroY/65.5;
+  RateYaw=(float)GyroZ/65.5;
+}
+void setup() {
+  Serial.begin(57600);
+  pinMode(13, OUTPUT);
+  digitalWrite(13, HIGH);
+  Wire.setClock(400000);
+  Wire.begin();
+  delay(250);
+  Wire.beginTransmission(0x68); 
+  Wire.write(0x6B);
+  Wire.write(0x00);
+  Wire.endTransmission();
+  for (RateCalibrationNumber=0;
+         RateCalibrationNumber<2000; 
+         RateCalibrationNumber ++) {
+    gyro_signals();
+    RateCalibrationRoll+=RateRoll;
+    RateCalibrationPitch+=RatePitch;
+    RateCalibrationYaw+=RateYaw;
+    delay(1);
+  }
+  RateCalibrationRoll/=2000;
+  RateCalibrationPitch/=2000;
+  RateCalibrationYaw/=2000;   
+}
+void loop() {
+  gyro_signals();
+  RateRoll-=RateCalibrationRoll;
+  RatePitch-=RateCalibrationPitch;
+  RateYaw-=RateCalibrationYaw;
+  Serial.print("Roll rate [°/s]= ");
+  Serial.print(RateRoll); 
+  Serial.print(" Pitch Rate [°/s]= ");
+  Serial.print(RatePitch);
+  Serial.print(" Yaw Rate [°/s]= ");
+  Serial.println(RateYaw);
+  delay(50);
+}
+ 
+
+ // -------------version1--------
+
+#include <Wire.h>
+
+// Gyroscope Variables
+float RateRoll, RatePitch, RateYaw;
+float RateCalibrationRoll, RateCalibrationPitch, RateCalibrationYaw;
+int RateCalibrationNumber;
+
+// MPU-6050 I2C Address
+const int MPU = 0x68;
+
+// LED Pins for Indicating Tipping
+const int ledRoll = 3;   // LED for Roll detection
+const int ledPitch = 4;  // LED for Pitch detection
+const int ledYaw = 5;    // LED for Yaw detection
+
+// Tipping Detection Threshold (Degrees per second)
+float tippingThreshold = 50.0;
+
+void setup() {
+    Serial.begin(115200);
+    Wire.begin();
+
+    // Initialize MPU-6050
+    Wire.beginTransmission(MPU);
+    Wire.write(0x6B);
+    Wire.write(0x00);
+    Wire.endTransmission();
+
+    // Set up LED pins as output
+    pinMode(ledRoll, OUTPUT);
+    pinMode(ledPitch, OUTPUT);
+    pinMode(ledYaw, OUTPUT);
+
+    // Calibration of Gyroscope
+    for (RateCalibrationNumber = 0; RateCalibrationNumber < 2000; RateCalibrationNumber++) {
+        readGyroData();
+        RateCalibrationRoll += RateRoll;
+        RateCalibrationPitch += RatePitch;
+        RateCalibrationYaw += RateYaw;
+        delay(1);
+    }
+
+    RateCalibrationRoll /= 2000;
+    RateCalibrationPitch /= 2000;
+    RateCalibrationYaw /= 2000;
+
+    Serial.println("Calibration Complete");
+}
+
+void loop() {
+    readGyroData();
+
+    // Remove calibration bias
+    RateRoll -= RateCalibrationRoll;
+    RatePitch -= RateCalibrationPitch;
+    RateYaw -= RateCalibrationYaw;
+
+    // LED Control: Turn on the LED if threshold is exceeded
+    if (abs(RateRoll) > tippingThreshold) {
+        digitalWrite(ledRoll, HIGH);
+    } else {
+        digitalWrite(ledRoll, LOW);
+    }
+
+    if (abs(RatePitch) > tippingThreshold) {
+        digitalWrite(ledPitch, HIGH);
+    } else {
+        digitalWrite(ledPitch, LOW);
+    }
+
+    if (abs(RateYaw) > tippingThreshold) {
+        digitalWrite(ledYaw, HIGH);
+    } else {
+        digitalWrite(ledYaw, LOW);
+    }
+
+    // Print sensor data
+    Serial.print("Roll: "); Serial.print(RateRoll);
+    Serial.print(" | Pitch: "); Serial.print(RatePitch);
+    Serial.print(" | Yaw: "); Serial.println(RateYaw);
+
+    delay(50);  // Small delay for stability
+}
+
+// Function to Read Gyroscope Data
+void readGyroData() {
+    Wire.beginTransmission(MPU);
+    Wire.write(0x43);
+    Wire.endTransmission();
+    Wire.requestFrom(MPU, 6);
+
+    int16_t GyroX = Wire.read() << 8 | Wire.read();
+    int16_t GyroY = Wire.read() << 8 | Wire.read();
+    int16_t GyroZ = Wire.read() << 8 | Wire.read();
+
+    RateRoll = (float)GyroX / 65.5;
+    RatePitch = (float)GyroY / 65.5;
+    RateYaw = (float)GyroZ / 65.5;
+}
+*/
+#include <Wire.h>
+
+// MPU-6050 I2C Address
+const int MPU = 0x68;
+
+// Function Prototypes (Fixes Scope Issues)
+void calibrateGyro();
+void readIMUData();
+void calculateTiltAngles();
+
+// Angle and Angular Velocity Variables
+float angleRoll = 0, anglePitch = 0;
+float rateRoll = 0, ratePitch = 0, rateYaw = 0;
+float accelRoll = 0, accelPitch = 0;
+float gyroBiasRoll = 0, gyroBiasPitch = 0, gyroBiasYaw = 0;
+float lastTime, dt;
+
+// LED Pins for Indicating Tipping
+const int ledRoll = 3;   // LED for Roll detection
+const int ledPitch = 4;  // LED for Pitch detection
+const int ledYaw = 5;    // LED for Yaw detection
+
+// **Tipping Detection Thresholds**
+const float angleThreshold = 10.0;       // Degrees - Safe angle limit
+const float angularVelocityThreshold = 0.020; // Degrees per second - Rapid movement limit
+
+void setup() {
+    Serial.begin(115200);
+    Wire.begin();
+
+    // Initialize MPU-6050
+    Wire.beginTransmission(MPU);
+    Wire.write(0x6B);
+    Wire.write(0x00);
+    Wire.endTransmission();
+
+    // Set up LED pins as output
+    pinMode(ledRoll, OUTPUT);
+    pinMode(ledPitch, OUTPUT);
+    pinMode(ledYaw, OUTPUT);
+    digitalWrite(ledRoll, LOW);
+    digitalWrite(ledPitch, LOW);
+    digitalWrite(ledYaw, LOW);
+
+    // Calibrate Gyroscope Bias
+    calibrateGyro();
+
+    lastTime = millis(); // Set initial time
+}
+
+void loop() {
+    readIMUData();
+    calculateTiltAngles();
+
+    // **Check if tipping conditions are met (both angle and velocity)**
+    bool rollTipping = (abs(angleRoll) > angleThreshold) && (abs(rateRoll) > angularVelocityThreshold);
+    bool pitchTipping = (abs(anglePitch) > angleThreshold) && (abs(ratePitch) > angularVelocityThreshold);
+    bool yawTipping = (abs(rateYaw) > angularVelocityThreshold); // No absolute angle for yaw
+
+    // **LED Control Based on Tipping**
+    digitalWrite(ledRoll, rollTipping ? HIGH : LOW);
+    digitalWrite(ledPitch, pitchTipping ? HIGH : LOW);
+    digitalWrite(ledYaw, yawTipping ? HIGH : LOW);
+
+    // **Debugging Prints**
+    Serial.print("Roll: "); Serial.print(angleRoll);
+    Serial.print(" | Pitch: "); Serial.print(anglePitch);
+    Serial.print(" | Yaw Rate: "); Serial.print(rateYaw);
+    Serial.print(" | Roll Rate: "); Serial.print(rateRoll);
+    Serial.print(" | Pitch Rate: "); Serial.println(ratePitch);
+
+    delay(50);
+}
+
+// **Function to Calibrate Gyroscope Bias**
+void calibrateGyro() {
+    int samples = 500;  // Reduced from 1000 to prevent overcorrection
+    float sumRoll = 0, sumPitch = 0, sumYaw = 0;
+
+    Serial.println("Calibrating Gyroscope...");
+    for (int i = 0; i < samples; i++) {
+        readIMUData();  // Get raw sensor data
+        sumRoll += rateRoll;
+        sumPitch += ratePitch;
+        sumYaw += rateYaw;
+        delay(2);
+    }
+
+    // Store the calculated bias
+    gyroBiasRoll = sumRoll / samples;
+    gyroBiasPitch = sumPitch / samples;
+    gyroBiasYaw = sumYaw / samples;
+
+    Serial.println("Calibration Complete.");
+}
+
+// **Function to Read IMU Data**
+void readIMUData() {
+    Wire.beginTransmission(MPU);
+    Wire.write(0x3B);  // Starting register for accelerometer
+    Wire.endTransmission();
+    Wire.requestFrom(MPU, 6 + 6);  // Request accelerometer (6) + gyroscope (6) data
+
+    // Read accelerometer data
+    int16_t AccX = Wire.read() << 8 | Wire.read();
+    int16_t AccY = Wire.read() << 8 | Wire.read();
+    int16_t AccZ = Wire.read() << 8 | Wire.read();
+
+    // Read gyroscope data
+    int16_t GyroX = Wire.read() << 8 | Wire.read();
+    int16_t GyroY = Wire.read() << 8 | Wire.read();
+    int16_t GyroZ = Wire.read() << 8 | Wire.read();
+
+    // Convert raw data to proper units
+    rateRoll = (float)GyroX / 65.5 - gyroBiasRoll;
+    ratePitch = (float)GyroY / 65.5 - gyroBiasPitch;
+    rateYaw = (float)GyroZ / 65.5 - gyroBiasYaw;
+
+    // Calculate tilt angles from accelerometer
+    accelRoll = atan2(AccY, AccZ) * 180 / M_PI;
+    accelPitch = atan2(-AccX, sqrt(AccY * AccY + AccZ * AccZ)) * 180 / M_PI;
+}
+
+// **Function to Calculate Tilt Angles using Complementary Filter**
+void calculateTiltAngles() {
+    float currentTime = millis();
+    dt = (currentTime - lastTime) / 1000.0; // Convert milliseconds to seconds
+    lastTime = currentTime;
+
+    // If this is the first run, set angles to accelerometer values
+    if (angleRoll == 0 && anglePitch == 0) {
+        angleRoll = accelRoll;
+        anglePitch = accelPitch;
+    }
+
+    // Complementary Filter (98% Gyro, 2% Accelerometer)
+    angleRoll = 0.98 * (angleRoll + rateRoll * dt) + 0.02 * accelRoll;
+    anglePitch = 0.98 * (anglePitch + ratePitch * dt) + 0.02 * accelPitch;
+}
